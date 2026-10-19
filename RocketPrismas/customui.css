@@ -1,0 +1,227 @@
+/* Estética ImGui / CustomUI (BakkesMod) */
+#pad-status { display: none; margin-top: 4px; color: #ffb547; font-weight: 600; }
+
+#cui-gear {
+  position: fixed; top: 10px; right: 10px; z-index: 40;
+  width: 40px; height: 40px; border-radius: 6px;
+  border: 1px solid #3d4a5c; background: rgba(20, 26, 36, .85);
+  color: #ffb547; font-size: 20px; cursor: pointer;
+}
+#cui-root {
+  display: none; position: fixed; inset: 0; z-index: 50;
+  background: rgba(0, 0, 0, .45); align-items: center; justify-content: center;
+  font-family: "Segoe UI", system-ui, sans-serif; font-size: 13px; color: #e6e9ef;
+}
+#cui-root.open { display: flex; }
+.cui-window {
+  width: min(520px, 94vw); max-height: 88vh; display: flex; flex-direction: column;
+  background: rgba(15, 18, 24, .96); border: 1px solid #2e3746; border-radius: 4px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .6);
+}
+.cui-title {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 10px; background: #1d2633; border-bottom: 1px solid #2e3746;
+  font-weight: 600; letter-spacing: .2px;
+}
+.cui-title button { background: none; border: 0; color: #9aa7b8; font-size: 15px; cursor: pointer; }
+.cui-tabs { display: flex; gap: 2px; padding: 6px 8px 0; border-bottom: 2px solid #c27716; }
+.cui-tab {
+  padding: 5px 14px; border: 0; border-radius: 4px 4px 0 0; cursor: pointer;
+  background: #232c3a; color: #b8c2d0; font: inherit;
+}
+.cui-tab:hover { background: #2f3b4d; }
+.cui-tab.active { background: #c27716; color: #fff; }
+.cui-body { padding: 10px 12px; overflow-y: auto; }
+.cui-sep {
+  margin: 8px 0 6px; color: #ffb547; font-weight: 600; display: flex; align-items: center; gap: 8px;
+}
+.cui-sep::after { content: ""; flex: 1; height: 1px; background: #2e3746; }
+.cui-row { display: grid; grid-template-columns: 1fr 1.3fr; align-items: center; gap: 10px; margin: 5px 0; }
+.cui-row label { color: #cfd6e0; }
+.cui-slider {
+  position: relative; height: 22px; border-radius: 3px; overflow: hidden;
+  background: linear-gradient(90deg, #8a5410 var(--p), #232c3a var(--p));
+}
+.cui-slider input { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: ew-resize; margin: 0; }
+.cui-val { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; font-size: 12px; }
+.cui-check { display: flex; align-items: center; gap: 8px; margin: 7px 0; cursor: pointer; }
+.cui-check input { display: none; }
+.cui-check span { width: 18px; height: 18px; border-radius: 3px; background: #232c3a; display: grid; place-items: center; }
+.cui-check input:checked + span { background: #c27716; }
+.cui-check input:checked + span::after { content: "✓"; color: #fff; font-size: 13px; }
+.cui-bind { display: grid; grid-template-columns: 1fr 1.2fr auto; gap: 6px; align-items: center; margin: 4px 0; }
+.cui-btn {
+  padding: 5px 10px; border: 0; border-radius: 3px; cursor: pointer; font: inherit;
+  background: #2a3546; color: #e6e9ef;
+}
+.cui-btn:hover { background: #3a4a62; }
+.cui-btn.small { padding: 5px 8px; color: #9aa7b8; }
+.cui-btn.primary { background: #c27716; color: #fff; }
+.cui-btn.waiting { background: #8a5410; animation: cuiPulse 1s infinite; }
+@keyframes cuiPulse { 50% { opacity: .55; } }
+.cui-info { color: #b8c2d0; margin: 6px 0 10px; line-height: 1.4; word-break: break-word; }
+#cui-vis { width: 100%; height: auto; background: #10151d; border: 1px solid #2e3746; border-radius: 3px; }
+.cui-footer { display: flex; justify-content: space-between; margin-top: 14px; }
+
+
+/* Menú de inicio: estilo clásico RL (skew) unificado para todos los botones */
+#start-menu {
+  --bh: clamp(52px, 5.2vw, 86px);
+  --bgap: 12px;
+  --start-blue: #0878bd;
+  --start-blue-hover: #079be3;
+  --start-white: #f5fbff;
+  --start-shadow: rgba(0, 10, 28, .62);
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: linear-gradient(90deg, rgba(3, 12, 27, .72) 0%, rgba(3, 12, 27, .4) 22%, transparent 52%);
+  pointer-events: auto;
+}
+
+/* Títulos/labels ocultos; las secciones son transparentes para no romper el absolute de los botones */
+#start-menu .menu-title,
+#start-menu .menu-label {
+  display: none;
+}
+#start-menu .menu-section {
+  display: contents; /* los hijos (botones) se posicionan respecto a #start-menu */
+}
+
+/* Botón base estilo RL (skew) */
+#start-menu button,
+#start-menu .menu-btn {
+  position: absolute;
+  left: clamp(24px, 6vw, 112px);
+  width: clamp(240px, 22vw, 400px);
+  height: var(--bh);
+  padding: 0 clamp(28px, 2.8vw, 52px);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  overflow: visible;
+  border: 1px solid rgba(193, 236, 255, .82);
+  border-radius: 0;
+  background: linear-gradient(180deg, rgba(10, 153, 221, .96), rgba(4, 91, 158, .96));
+  color: var(--start-white);
+  box-shadow: 0 12px 26px var(--start-shadow), inset 0 1px 0 rgba(255, 255, 255, .3);
+  cursor: pointer;
+  transform: skewX(-9deg);
+  transition: background 140ms ease, transform 140ms ease, filter 140ms ease;
+  font-family: "Arial Narrow", "Roboto Condensed", Impact, sans-serif;
+  animation: menuIn .5s cubic-bezier(.2, .9, .3, 1) both;
+}
+
+#start-menu button::before,
+#start-menu .menu-btn::before {
+  content: "";
+  position: absolute;
+  inset: 6px auto 6px -7px;
+  width: 4px;
+  background: rgba(224, 247, 255, .94);
+  box-shadow: 7px 0 0 rgba(224, 247, 255, .4);
+}
+
+#start-menu button::after,
+#start-menu .menu-btn::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: -23px;
+  width: 27px;
+  height: 100%;
+  border-right: 4px solid rgba(224, 247, 255, .94);
+  background: rgba(9, 125, 190, .42);
+}
+
+#start-menu button:hover,
+#start-menu button:focus-visible,
+#start-menu .menu-btn:hover,
+#start-menu .menu-btn:focus-visible {
+  outline: none;
+  background: linear-gradient(180deg, var(--start-blue-hover), var(--start-blue));
+  transform: skewX(-9deg) translateX(7px);
+  filter: brightness(1.08);
+}
+
+#start-menu button:active,
+#start-menu .menu-btn:active {
+  transform: skewX(-9deg) translateX(7px) scale(.985);
+}
+
+#start-menu button span,
+#start-menu .menu-btn span {
+  transform: skewX(9deg);
+  font-size: clamp(18px, 1.85vw, 32px);
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1;
+  text-shadow: 0 2px 8px var(--start-shadow);
+  white-space: nowrap;
+}
+
+/* Apilado desde abajo (mismo sistema que el menú original) */
+#play-button {
+  bottom: 37.5%;
+  animation-delay: 0s;
+}
+#mp-match-button {
+  bottom: calc(37.5% + 1 * (var(--bh) + var(--bgap)));
+  animation-delay: .06s;
+  background: linear-gradient(180deg, rgba(40, 170, 120, .96), rgba(18, 110, 75, .96));
+}
+#mp-match-button::after { background: rgba(30, 140, 95, .45); }
+#mp-match-button:hover,
+#mp-match-button:focus-visible {
+  background: linear-gradient(180deg, rgba(50, 190, 135, .98), rgba(24, 130, 90, .98));
+}
+
+#garage-button {
+  bottom: calc(37.5% + 2 * (var(--bh) + var(--bgap)));
+  animation-delay: .1s;
+  background: linear-gradient(180deg, rgba(90, 70, 200, .96), rgba(50, 35, 140, .96));
+}
+#garage-button::after { background: rgba(60, 40, 160, .45); }
+#garage-button:hover,
+#garage-button:focus-visible {
+  background: linear-gradient(180deg, rgba(110, 85, 220, .98), rgba(65, 45, 160, .98));
+}
+
+#start-menu .mp-status {
+  position: absolute;
+  left: clamp(24px, 6vw, 112px);
+  bottom: calc(37.5% - 36px);
+  max-width: clamp(240px, 22vw, 400px);
+  font-size: 13px;
+  color: #9ec8e8;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, .6);
+  pointer-events: none;
+}
+
+@keyframes menuIn {
+  from { opacity: 0; transform: skewX(-9deg) translateX(-60px); }
+  to { opacity: 1; transform: skewX(-9deg); }
+}
+
+@media (max-width: 640px) {
+  #start-menu {
+    background: linear-gradient(90deg, rgba(3, 12, 27, .72) 0%, rgba(3, 12, 27, .46) 42%, transparent 88%);
+  }
+  #start-menu button,
+  #start-menu .menu-btn,
+  #start-menu .join-row {
+    left: max(16px, env(safe-area-inset-left));
+    width: min(280px, calc(100vw - 48px));
+  }
+}
+
+@media (max-height: 560px) {
+  #start-menu { --bh: 42px; --bgap: 8px; }
+  #start-menu button span,
+  #start-menu .menu-btn span { font-size: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #start-menu button,
+  #start-menu .menu-btn { transition: none; animation: none; }
+}
