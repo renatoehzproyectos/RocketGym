@@ -10,15 +10,17 @@
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
 <link rel="preconnect" href="https://cdn.jsdelivr.net" />
 <link rel="preload" href="assets/fennec.glb" as="fetch" crossorigin />
-<title>RocketSim Web Demo</title>
+<title>Rocket Gym</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,700;1,800;1,900&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="style.css?v=5" />
 <link rel="stylesheet" href="customui.css?v=1" />
-<link rel="stylesheet" href="rl_look.css?v=1" />
+<link rel="stylesheet" href="rl_look.css?v=3" />
 </head>
 <body>
   <div id="loading" aria-live="polite">
     <div class="loading-inner">
-      <div class="loading-title">RocketSim</div>
+      <div class="loading-title">ROCKET GYM</div>
       <div class="loading-bar-wrap">
         <div id="loading-bar" class="loading-bar"></div>
       </div>
@@ -55,7 +57,7 @@
   <div id="version-tag">v1.0 build dev</div>
 
   <div id="start-menu" role="dialog" aria-label="Menú de inicio">
-    <div class="menu-title">RocketSim</div>
+    <div class="menu-title">ROCKET GYM</div>
 
     <div class="menu-section">
       <div class="menu-label">Juego</div>
@@ -70,18 +72,19 @@
   </div>
 
   <canvas id="c"></canvas>
+  <div id="rl-vig"></div><div id="rl-flash"></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-  <script type="module" src="game.js?v=24"></script>
+  <script type="module" src="game.js?v=26"></script>
   <script src="multiplayer.js?v=11" defer></script>
   <script src="nametags.js?v=1" defer></script>
-  <script src="bots.js?v=3" defer></script>
+  <script src="bots.js?v=4" defer></script>
   <script src="recorder.js?v=1" defer></script>
   <script src="gym_rules.js?v=1" defer></script>
   <script src="gym_core.js?v=1" defer></script>
-  <script src="gym_ui.js?v=2" defer></script>
-  <script src="rl_hud.js?v=1" defer></script>
+  <script src="gym_ui.js?v=3" defer></script>
+  <script src="rl_hud.js?v=2" defer></script>
   <script src="audio.js?v=1" defer></script>
   <script>
   document.getElementById('play-button').addEventListener('click', function () {

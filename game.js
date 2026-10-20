@@ -341,8 +341,8 @@ async function main() {
   scene.background = new THREE.Color(0x0a0e14);
 
   // Hemisphere + soft directional so MeshStandardMaterial (Fennec body/wheels) is not pitch-black
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 0.5));
-  const dirLight = new THREE.DirectionalLight(0xffffff, 0.55);
+  scene.add(new THREE.HemisphereLight(0xcfe6ff, 0x3a5a3a, 0.8));
+  const dirLight = new THREE.DirectionalLight(0xfff0d8, 0.95);
   dirLight.position.set(8, 18, 6);
   scene.add(dirLight);
 
@@ -693,378 +693,6 @@ async function main() {
   // Los 34 chicos no vinieron todos con coordenadas exactas; se dibujan los de la línea
   // central (Y=0) que sí se dieron -- el resto de carriles quedaría por agregar si hace falta.
   // Shared materials + low-segment cylinders (memory)
-  const padMatBig = new THREE.MeshBasicMaterial({ color: 0xffcc33 });
-  const padMatSmall = new THREE.MeshBasicMaterial({ color: 0xdddddd });
-  function addPad(x, y, big) {
-    const r = (big ? 65 : 35) * UU_TO_M;
-    const pad = new THREE.Mesh(
-      new THREE.CylinderGeometry(r, r, 0.05, 8),
-      big ? padMatBig : padMatSmall
-    );
-    pad.position.set(x * UU_TO_M, 0.03, -y * UU_TO_M);
-    scene.add(pad);
-  }
-  const bigPadCoords = [
-    [3072, 4096], [3072, -4096], [-3072, 4096], [-3072, -4096],
-    [3584, 0], [-3584, 0],
-  ];
-  bigPadCoords.forEach(([x, y]) => addPad(x, y, true));
-  const smallPadCoordsCenterLine = [
-    [256, 0], [-256, 0], [1024, 0], [-1024, 0], [1792, 0], [-1792, 0],
-  ];
-  smallPadCoordsCenterLine.forEach(([x, y]) => addPad(x, y, false));
-
-  const ballState0 = Module.getBallState();
-  // Low-poly ball (MeshBasic = no lighting uniforms)
-  const ball = new THREE.Group();
-  const ballPlaceholder = new THREE.Mesh(
-    new THREE.SphereGeometry(ballState0.radius * UU_TO_M, 12, 8),
-    new THREE.MeshBasicMaterial({ color: 0xe8a020 })
-  );
-  ball.add(ballPlaceholder);
-  scene.add(ball);
-  // Modelo real de la pelota + atlas de textura (se reemplaza el placeholder al terminar de cargar).
-  (async () => {
-    try {
-      const gltf = await new Promise((res, rej) => new THREE.GLTFLoader().load('assets/ball.glb', res, undefined, rej));
-      const atlas = loadTex('assets/ball_d.webp');
-      atlas.flipY = false;                                  // glTF usa UV con origen arriba
-      atlas.wrapS = atlas.wrapT = THREE.RepeatWrapping;     // los UV del modelo están en [0..1]x[1..2]
-      const model = gltf.scene;
-      const box = new THREE.Box3().setFromObject(model), sz = box.getSize(new THREE.Vector3()), ctr = box.getCenter(new THREE.Vector3());
-      const k = (ballState0.radius * UU_TO_M * 2) / Math.max(sz.x, sz.y, sz.z);
-      model.position.sub(ctr);                              // centrar en el origen
-      const wrap = new THREE.Group(); wrap.add(model); wrap.scale.setScalar(k);
-      model.traverse(o => {
-        if (!o.isMesh) return;
-        o.material = new THREE.MeshStandardMaterial({ map: atlas, emissiveMap: atlas, emissive: 0xffffff, emissiveIntensity: 0.9, roughness: 0.5, metalness: 0.0, side: THREE.DoubleSide });
-      });
-      ball.remove(ballPlaceholder);
-      ball.add(wrap);
-    } catch (err) { console.warn('No se pudo cargar la pelota:', err); }
-  })();
-
-  // Fennec visual. Local axes: X = forward, Y = right, Z = up.
-  const rubberTex = loadTex('assets/rubber_d.webp'), carbonTex = loadTex('assets/carbon_d.webp');
-  rubberTex.wrapS = rubberTex.wrapT = carbonTex.wrapS = carbonTex.wrapT = THREE.RepeatWrapping;
-  const carMesh = new THREE.Group();
-  scene.add(carMesh);
-  const wheelRig = [];
-  let wheelSpin = 0;
-  (async () => {
-    const L = hb.x * UU_TO_M, W = hb.y * UU_TO_M, H = hb.z * UU_TO_M;
-    const textureLoader = new THREE.TextureLoader();
-    const bodyMap = textureLoader.load('assets/Chassis_Grain_D.webp');
-    const bodyNormal = textureLoader.load('assets/Chassis_Grain_N.webp');
-    const wheelMap = textureLoader.load('assets/Alpha_D.webp');
-    const wheelNormal = textureLoader.load('assets/Alpha_N.webp');
-    bodyMap.encoding = THREE.sRGBEncoding;
-    wheelMap.encoding = THREE.sRGBEncoding;
-    bodyMap.flipY = bodyNormal.flipY = wheelMap.flipY = wheelNormal.flipY = false;
-
-    // Evita que la luz "queme" el color a blanco: si un canal se pasa de 1, se reescala
-    // conservando el tono (naranja sigue siendo naranja) y se empuja un poco hacia el rosado.
-    const USE_PEARL = new URLSearchParams(location.search).get('pearl') === '1';   // acabado perlado opcional
-    const keepHue = (mat, pink, pearl = false) => {
-      mat.customProgramCacheKey = () => 'keephue' + pink + (pearl ? 'P' : '');
-      mat.onBeforeCompile = shader => {
-        // Anodized Pearl: el tono cambia con el ángulo de vista (naranja de frente -> dorado -> rosa/magenta de canto).
-        const pearlCode = pearl ?
-          // Anodized Pearl naranja (referencia): superficies que miran hacia ARRIBA (capó, techo) -> magenta;
-          // costados -> cobre/naranja; de canto el rosa avanza un poco por los bordes. Se recolorea por brillo
-          // para conservar el sombreado y los reflejos.
-          'vec3 pN = normalize(normal); float pNV = clamp(dot(pN, normalize(vViewPosition)), 0.0, 1.0); float pFr = pow(1.0 - pNV, 2.5); ' +
-          'vec3 pUpV = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz); float pUp = smoothstep(0.30, 0.92, dot(pN, pUpV)); ' +
-          'float pm = clamp(pUp * 0.95 + pFr * 0.45, 0.0, 1.0); ' +
-          'vec3 pearlC = mix(vec3(1.0, 0.50, 0.17), vec3(1.0, 0.16, 0.82), pm); ' +
-          'float pL = dot(oc, vec3(0.30, 0.59, 0.11)); ' +
-          'oc = mix(oc, pearlC * clamp(pL * 1.55 + 0.03, 0.0, 0.92), 0.92); ' : '';
-        shader.fragmentShader = shader.fragmentShader.replace(
-          'gl_FragColor = vec4( outgoingLight, diffuseColor.a );',
-          'vec3 oc = outgoingLight; float mx = max(oc.r, max(oc.g, oc.b)); if (mx > 0.95) oc *= 0.95 / mx; ' +
-          'oc = mix(oc, oc * vec3(1.0, 0.72, 0.85), ' + pink.toFixed(2) + '); ' + pearlCode +
-          'mx = max(oc.r, max(oc.g, oc.b)); if (mx > 0.98) oc *= 0.98 / mx; ' +
-          'gl_FragColor = vec4( oc, diffuseColor.a );'
-        );
-      };
-      return mat;
-    };
-    const gltf = await new Promise((resolve, reject) => {
-      new THREE.GLTFLoader().load('assets/fennec.glb', resolve, undefined, reject);
-    }).catch(err => { console.error('Fennec no cargó:', err); return null; });
-    const source = gltf ? gltf.scene : new THREE.Group();
-    const body = gltf ? source.getObjectByName('Fennec') : null;
-    const wheelOrder = ['FR', 'FL', 'BR', 'BL'];
-    const wheels = wheelOrder.map(code => {
-      let match = null;
-      source.traverse(child => {
-        if (!match && child.name.startsWith('Alpha') && child.name.includes(code)) match = child;
-      });
-      return match;
-    });
-
-    const bodyMeshes = [];   // meshes con material Body o Paint (reciben el decal)
-    const chassisMeshes = []; // meshes de chasis
-    if (body) {
-      source.traverse(child => {
-        if (!child.isMesh) return;
-        const name = Array.isArray(child.material)
-          ? child.material.map(material => material.name).join(' ')
-          : child.material?.name || '';
-        if (/Window/i.test(name)) {
-          child.material = new THREE.MeshBasicMaterial({ color: 0x000000 });
-        } else if (/Headlight/i.test(name)) {
-          child.material = new THREE.MeshStandardMaterial({ color: 0xf4fbff, emissive: 0x9ff0ff, emissiveIntensity: 1.6, roughness: 0.1, envMap: carEnvMap });
-        } else if (/Alpha/i.test(name)) {
-          // Aro: oscuro con borde naranja metálico (como el Fennec rojo)
-          child.material = keepHue(new THREE.MeshStandardMaterial({ map: wheelMap, normalMap: wheelNormal, color: 0x050506, roughness: 0.4, metalness: 0.4, envMap: carEnvMap, envMapIntensity: 0.2 }), 0.0);
-        } else if (/Dieci/i.test(name)) {
-          child.geometry.computeBoundingBox();
-          const bs = child.geometry.boundingBox.getSize(new THREE.Vector3());
-          child.material = triplanar(new THREE.MeshStandardMaterial({ color: 0x1a1a1c, roughness: 0.9, metalness: 0.0 }), rubberTex, { scale: 5 / Math.max(bs.x, bs.y, bs.z, 1e-3), amount: 0.9, space: 'object' });
-        } else if (/Body|Paint/i.test(name)) {
-          // Body + Paint: superficie que recibe el decal / color base
-          // OJO: los UV de Body/Paint en este GLB son todos (0,1) (sin mapeo): el decal se proyecta por posición (ver attachSkinProjection).
-          const bm = keepHue(new THREE.MeshPhysicalMaterial({
-            normalMap: bodyNormal, normalScale: new THREE.Vector2(0.5, 0.5),
-            color: 0xff4a00, emissive: 0x2a0a00, roughness: 0.3, metalness: 0.15,
-            clearcoat: 1.0, clearcoatRoughness: 0.08, envMap: carEnvMap, envMapIntensity: 0.22,
-          }), 0.0, USE_PEARL);
-          attachSkinProjection(bm, child.geometry);
-          child.material = bm;
-          bodyMeshes.push(child);
-        } else {
-          // Chasis / molduras: plástico negro semi-mate con detalle
-          child.geometry.computeBoundingBox();
-          const cs = child.geometry.boundingBox.getSize(new THREE.Vector3());
-          const cm = triplanar(new THREE.MeshStandardMaterial({ normalMap: bodyNormal, color: 0x1a1a1d, roughness: 0.32, metalness: 0.3, envMap: carEnvMap, envMapIntensity: 0.18 }), carbonTex, { scale: 14 / Math.max(cs.x, cs.y, cs.z, 1e-3), amount: 1.0, space: 'object' });
-          child.material = cm;
-          chassisMeshes.push(child);
-        }
-      });
-      const box = new THREE.Box3().setFromObject(source);
-      const size = box.getSize(new THREE.Vector3());
-      const center = box.getCenter(new THREE.Vector3());
-      const scale = (L * 0.98) / size.x;
-      source.scale.setScalar(scale);
-      source.rotation.x = Math.PI / 2;
-      source.position.set(-center.x * scale, center.z * scale, -box.min.y * scale - H * 0.48);
-      carMesh.add(source);
-
-      wheels.forEach((wheel, index) => {
-        if (!wheel) return;
-        wheelRig.push({
-          wheel,
-          baseY: wheel.position.y,
-          baseQuaternion: wheel.quaternion.clone(),
-          front: index < 2,
-          right: index === 0 || index === 2,
-          modelScale: scale,
-        });
-      });
-    }
-    carSkinAPI.bodyMeshes = bodyMeshes;
-    carSkinAPI.chassisMeshes = chassisMeshes;
-    carSkinAPI.bodyNormal = bodyNormal;
-    carSkinAPI.carbonTex = carbonTex;
-    carSkinAPI.carEnvMap = carEnvMap;
-    carSkinAPI.ready = true;
-    if (carSkinAPI._pending) { carSkinAPI.apply(carSkinAPI._pending); carSkinAPI._pending = null; }
-  })();
-
-  // Proyección triplanar (espacio objeto, normalizada al bbox) para decals: el GLB no trae UV útiles en Body/Paint.
-  function attachSkinProjection(mat, geo) {
-    geo.computeBoundingBox();
-    const bb = geo.boundingBox;
-    const U = {
-      uSkMin: { value: bb.min.clone() }, uSkSize: { value: bb.getSize(new THREE.Vector3()) },
-      uSkTex: { value: null }, uSkEm: { value: null }, uSkOn: { value: 0 }, uSkEmOn: { value: 0 },
-    };
-    mat.userData.sk = U;
-    const prev = mat.onBeforeCompile, prevKey = mat.customProgramCacheKey;
-    mat.customProgramCacheKey = () => prevKey.call(mat) + '_skproj';
-    mat.onBeforeCompile = shader => {
-      if (prev) prev(shader);
-      Object.assign(shader.uniforms, U);
-      shader.vertexShader = shader.vertexShader
-        .replace('void main() {', 'varying vec3 vSkP; varying vec3 vSkN;\nvoid main() {')
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvSkP = position; vSkN = normalize(normal);');
-      shader.fragmentShader = shader.fragmentShader
-        .replace('void main() {',
-          'uniform vec3 uSkMin; uniform vec3 uSkSize; uniform sampler2D uSkTex; uniform sampler2D uSkEm; uniform float uSkOn; uniform float uSkEmOn;\n' +
-          'varying vec3 vSkP; varying vec3 vSkN;\n' +
-          'vec3 skSample(sampler2D t) {\n' +
-          '  vec3 q = (vSkP - uSkMin) / uSkSize; vec3 w = pow(abs(vSkN), vec3(4.0)); w /= (w.x + w.y + w.z + 1e-5);\n' +
-          '  vec3 c = texture2D(t, vec2(q.y, q.z)).rgb * w.x + texture2D(t, vec2(q.x, q.z)).rgb * w.y + texture2D(t, vec2(q.x, q.y)).rgb * w.z;\n' +
-          '  return pow(c, vec3(2.2));\n}\nvoid main() {')
-        .replace('#include <map_fragment>', '#include <map_fragment>\nif (uSkOn > 0.5) diffuseColor.rgb *= skSample(uSkTex);')
-        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\nif (uSkEmOn > 0.5) totalEmissiveRadiance *= skSample(uSkEm);');
-    };
-    mat.needsUpdate = true;
-  }
-  // ---------- Personalización de auto (decals / skins) ----------
-  const carSkinAPI = {
-    ready: false, bodyMeshes: [], chassisMeshes: [], bodyNormal: null,
-    carbonTex: null, carEnvMap: null, current: 'default', _pending: null, _cache: {},
-  };
-  const SKINS = [
-    { id: 'default', name: 'Default', body: null, chassis: null, normal: null, thumb: null },
-    { id: 'mrl', name: 'MRL Fennec', body: 'assets/skins/MRLFen.png', chassis: 'assets/skins/fennecEng.png', normal: null, thumb: 'assets/skins/MRLFen.png' },
-    { id: 'haunter', name: 'Haunter', body: 'assets/skins/Haunter_D.png', chassis: null, normal: null, thumb: 'assets/skins/Haunter_D.png' },
-    { id: 'lava', name: 'Lava', body: 'assets/skins/lava_d.png', emissive: 'assets/skins/lava_e.png', chassis: null, normal: null, thumb: 'assets/skins/lava_d.png' },
-    { id: 'crystal', name: 'Crystal', body: 'assets/skins/crystal_fen.png', chassis: null, normal: null, thumb: 'assets/skins/crystal_fen.png' },
-  ];
-  function loadSkinTex(url) {
-    if (!url) return Promise.resolve(null);
-    if (carSkinAPI._cache[url]) return Promise.resolve(carSkinAPI._cache[url]);
-    return new Promise((resolve) => {
-      const t = new THREE.TextureLoader().load(url, () => {
-        t.encoding = THREE.sRGBEncoding;
-        t.flipY = false;
-        t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
-        t.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 8);
-        carSkinAPI._cache[url] = t;
-        resolve(t);
-      }, undefined, () => resolve(null));
-    });
-  }
-  carSkinAPI.apply = async function (skinId) {
-    if (!carSkinAPI.ready) { carSkinAPI._pending = skinId; return; }
-    const skin = SKINS.find(s => s.id === skinId) || SKINS[0];
-    carSkinAPI.current = skin.id;
-    try { localStorage.setItem('carSkin', skin.id); } catch (_) {}
-    const [bodyTex, chassisTex, normalTex, emissiveTex] = await Promise.all([
-      loadSkinTex(skin.body),
-      loadSkinTex(skin.chassis),
-      loadSkinTex(skin.normal),
-      loadSkinTex(skin.emissive),
-    ]);
-    // Body + Paint: decal proyectado por posición (uniforms del shader)
-    for (const mesh of carSkinAPI.bodyMeshes) {
-      const m = mesh.material, U = m.userData.sk;
-      m.map = null; m.emissiveMap = null;
-      if (bodyTex) {
-        U.uSkTex.value = bodyTex; U.uSkOn.value = 1;
-        m.color.setHex(0xffffff);
-        if (emissiveTex) {
-          U.uSkEm.value = emissiveTex; U.uSkEmOn.value = 1;
-          m.emissive.setHex(0xffffff); m.emissiveIntensity = 1.6;
-        } else {
-          U.uSkEmOn.value = 0; m.emissive.setHex(0x000000); m.emissiveIntensity = 0;
-        }
-        m.normalMap = null; // sin UV válidos no hay normal map posible
-        m.roughness = 0.35; m.metalness = 0.12; m.envMapIntensity = 0.35;
-      } else {
-        U.uSkOn.value = 0; U.uSkEmOn.value = 0;
-        m.color.setHex(0xff4a00);
-        m.emissive.setHex(0x2a0a00); m.emissiveIntensity = 1;
-        m.normalMap = carSkinAPI.bodyNormal;
-        m.normalScale.set(0.5, 0.5);
-        m.roughness = 0.3; m.metalness = 0.15; m.envMapIntensity = 0.22;
-      }
-      m.needsUpdate = true;
-    }
-    // Chasis: si el skin trae diffuse de chasis, material UV-mapped; si no, volver a triplanar carbono
-    for (const mesh of carSkinAPI.chassisMeshes) {
-      if (chassisTex) {
-        mesh.material = new THREE.MeshStandardMaterial({
-          map: chassisTex, color: 0xffffff, roughness: 0.4, metalness: 0.25,
-          normalMap: carSkinAPI.bodyNormal, normalScale: new THREE.Vector2(0.4, 0.4),
-          envMap: carSkinAPI.carEnvMap, envMapIntensity: 0.25,
-        });
-      } else {
-        const cs = mesh.geometry.boundingBox
-          ? mesh.geometry.boundingBox.getSize(new THREE.Vector3())
-          : new THREE.Vector3(1, 1, 1);
-        mesh.material = triplanar(
-          new THREE.MeshStandardMaterial({
-            normalMap: carSkinAPI.bodyNormal, color: 0x1a1a1d, roughness: 0.32, metalness: 0.3,
-            envMap: carSkinAPI.carEnvMap, envMapIntensity: 0.18,
-          }),
-          carSkinAPI.carbonTex,
-          { scale: 14 / Math.max(cs.x, cs.y, cs.z, 1e-3), amount: 1.0, space: 'object' }
-        );
-      }
-    }
-  };
-  try {
-    const saved = localStorage.getItem('carSkin');
-    if (saved) carSkinAPI.apply(saved);
-  } catch (_) {}
-
-  // UI de personalización
-  (function setupGarageUI() {
-    const panel = document.createElement('div');
-    panel.id = 'garage-panel';
-    panel.style.cssText = 'display:none;position:fixed;inset:0;z-index:95;background:rgba(0,0,0,.55);align-items:center;justify-content:center;font-family:system-ui,sans-serif;';
-    panel.innerHTML = `
-      <div style="width:min(560px,94vw);max-height:88vh;overflow:auto;background:rgba(12,16,24,.97);border:1px solid #2e3746;border-radius:8px;box-shadow:0 16px 48px rgba(0,0,0,.65);">
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:#1a2230;border-bottom:1px solid #2e3746;">
-          <span style="font:700 16px system-ui;color:#e8f0f8;letter-spacing:.04em;">PERSONALIZAR AUTO</span>
-          <button id="garage-close" type="button" style="background:none;border:0;color:#9aa7b8;font-size:20px;cursor:pointer;">✕</button>
-        </div>
-        <div style="padding:14px 16px 18px;">
-          <div style="color:#ffb547;font:600 12px system-ui;margin-bottom:10px;letter-spacing:.06em;">DECALS · FENNEC</div>
-          <div id="garage-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;"></div>
-        </div>
-      </div>`;
-    document.body.appendChild(panel);
-    const grid = panel.querySelector('#garage-grid');
-    function renderGrid() {
-      grid.innerHTML = '';
-      for (const s of SKINS) {
-        const card = document.createElement('button');
-        card.type = 'button';
-        card.dataset.skin = s.id;
-        const sel = carSkinAPI.current === s.id;
-        card.style.cssText = `cursor:pointer;border-radius:6px;border:2px solid ${sel ? '#c27716' : '#2e3746'};background:#1a2230;padding:0;overflow:hidden;text-align:left;color:#e8f0f8;`;
-        const thumb = s.thumb
-          ? `<div style="height:90px;background:#0d121a center/cover no-repeat;background-image:url('${s.thumb}')"></div>`
-          : `<div style="height:90px;background:linear-gradient(135deg,#ff4a00,#2a0a00);display:grid;place-items:center;font:700 13px system-ui;color:#fff;">DEFAULT</div>`;
-        card.innerHTML = `${thumb}<div style="padding:8px 10px;font:600 13px system-ui;">${s.name}${sel ? ' ✓' : ''}</div>`;
-        card.addEventListener('click', () => {
-          carSkinAPI.apply(s.id).then(() => renderGrid());
-        });
-        grid.appendChild(card);
-      }
-    }
-    function openGarage() {
-      renderGrid();
-      panel.style.display = 'flex';
-    }
-    function closeGarage() { panel.style.display = 'none'; }
-    panel.querySelector('#garage-close').addEventListener('click', closeGarage);
-    panel.addEventListener('click', (e) => { if (e.target === panel) closeGarage(); });
-    window.addEventListener('keydown', (e) => { if (e.code === 'Escape' && panel.style.display === 'flex') closeGarage(); });
-
-    // Botón en menú de inicio
-    const menu = document.getElementById('start-menu');
-    if (menu) {
-      const sec = document.createElement('div');
-      sec.className = 'menu-section';
-      const btn = document.createElement('button');
-      btn.id = 'garage-button';
-      btn.type = 'button';
-      btn.innerHTML = '<span>PERSONALIZAR</span>';
-      btn.addEventListener('click', (e) => { e.stopPropagation(); openGarage(); });
-      sec.appendChild(btn);
-      // Insertar antes de multijugador si existe
-      const mpSec = menu.querySelector('#mp-match-button')?.closest('.menu-section');
-      if (mpSec) menu.insertBefore(sec, mpSec);
-      else menu.appendChild(sec);
-    }
-    // Botón flotante in-game (después de cerrar menú)
-    const fab = document.createElement('button');
-    fab.id = 'garage-fab';
-    fab.type = 'button';
-    fab.title = 'Personalizar auto';
-    fab.textContent = '🎨';
-    fab.style.cssText = 'position:fixed;top:10px;right:58px;z-index:40;width:40px;height:40px;border-radius:6px;border:1px solid #3d4a5c;background:rgba(20,26,36,.85);color:#ffb547;font-size:18px;cursor:pointer;';
-    fab.addEventListener('click', openGarage);
-    document.body.appendChild(fab);
-    window.__openGarage = openGarage;
-  })();
-
   // ---------- Boost "Alpha" (Gold Rush): estela de muchas imágenes 2D doradas ----------
   // El .upk que se subió es solo el ícono, así que la estela se arma por código: cientos de
   // sprites (billboards) muy densos que nacen en el escape, se quedan en el aire (por eso al girar/
@@ -1075,6 +703,69 @@ async function main() {
   const boostLight = new THREE.PointLight(0xffb020, 0, 14, 1.6);
   carMesh.add(boostLight);
   let boostLevel = 0;
+
+  // ===== RL fidelity: pads de boost (34, layout oficial), llama de boost, explosión de gol =====
+  const addTex = (draw) => { const c = document.createElement('canvas'); c.width = c.height = 128; draw(c.getContext('2d')); const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return t; };
+  const glowT = addTex(g => { const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.35, 'rgba(255,255,255,.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); });
+  const hexT = addTex(g => { const hx = (r) => { g.beginPath(); for (let i = 0; i < 6; i++) { const a = Math.PI / 3 * i; g[i ? 'lineTo' : 'moveTo'](64 + Math.cos(a) * r, 64 + Math.sin(a) * r); } g.closePath(); };
+    hx(58); g.fillStyle = 'rgba(255,255,255,.22)'; g.fill(); g.lineWidth = 6; g.strokeStyle = '#fff'; g.stroke(); hx(36); g.lineWidth = 3; g.strokeStyle = 'rgba(255,255,255,.7)'; g.stroke(); });
+  const addMat = (map, color, op) => new THREE.MeshBasicMaterial({ map, color, transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false });
+  const PADS = [];
+  function addPad(x, y, big) {
+    const R = (big ? 150 : 92) * UU_TO_M, col = big ? 0xff9a1a : 0xffc24a;
+    const g = new THREE.Group(); g.position.set(x * UU_TO_M, 0.05, -y * UU_TO_M);
+    const hex = new THREE.Mesh(new THREE.PlaneGeometry(2 * R, 2 * R), addMat(hexT, col, 0.9)); hex.rotation.x = -Math.PI / 2; hex.renderOrder = 4; g.add(hex);
+    const gl = new THREE.Mesh(new THREE.PlaneGeometry(3 * R, 3 * R), addMat(glowT, col, 0.45)); gl.rotation.x = -Math.PI / 2; gl.position.y = 0.01; gl.renderOrder = 4; g.add(gl);
+    let orb = null, halo = null;
+    if (big) {
+      orb = new THREE.Mesh(new THREE.SphereGeometry(0.75, 16, 12), new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false })); g.add(orb);
+      halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowT, color: 0xff9a1a, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false })); halo.scale.set(5.2, 5.2, 1); g.add(halo);
+    } else {
+      orb = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.9, 6), new THREE.MeshBasicMaterial({ color: 0xffe0a0, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false })); g.add(orb);
+    }
+    scene.add(g); PADS.push({ g, hex, gl, orb, halo, big, R: big ? 208 * UU_TO_M : 144 * UU_TO_M, t: 0, ph: Math.random() * 6 });
+  }
+  [[-3072,-4096],[3072,-4096],[-3584,0],[3584,0],[-3072,4096],[3072,4096]].forEach(([x, y]) => addPad(x, y, true));
+  [[0,-4240],[-1792,-4184],[1792,-4184],[-940,-3308],[940,-3308],[0,-2816],[-3584,-2484],[3584,-2484],[-1788,-2300],[1788,-2300],[-2048,-1036],[0,-1024],[2048,-1036],[-1024,0],[1024,0],[-2048,1036],[0,1024],[2048,1036],[-1788,2300],[1788,2300],[-3584,2484],[3584,2484],[0,2816],[-940,3308],[940,3308],[-1792,4184],[1792,4184],[0,4240]].forEach(([x, y]) => addPad(x, y, false));
+
+  // Llama de boost: dos conos aditivos (naranja + núcleo amarillo) que parpadean detrás del escape.
+  const flame = new THREE.Group(); boostFx.add(flame);
+  [[0xff6a10, 0.6, 1], [0xffe08a, 0.95, 0.5]].forEach(([c, o, k]) => {
+    const geo = new THREE.ConeGeometry(1, 1, 14, 1, true); geo.translate(0, 0.5, 0); geo.rotateZ(Math.PI / 2);
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    m.userData.k = k; flame.add(m);
+  });
+
+  // Explosión de gol: chispas + onda de choque con el color del equipo que anotó.
+  const GN = 120, gparts = [];
+  for (let i = 0; i < GN; i++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowT, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false })); sp.visible = false; scene.add(sp); gparts.push({ sp, v: new THREE.Vector3(), life: 0 }); }
+  const gwave = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowT, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false })); gwave.visible = false; scene.add(gwave);
+  let gwaveT = 0;
+  function goalExplode(blue) {
+    const col = new THREE.Color(blue ? 0x2a8bff : 0xff8a1f);
+    gparts.forEach(p => { p.sp.position.copy(ball.position); p.v.set(Math.random() - .5, Math.random() * .8, Math.random() - .5).normalize().multiplyScalar(12 + Math.random() * 38);
+      p.life = 1.2 + Math.random() * .8; p.sp.material.color.copy(col).lerp(new THREE.Color(0xffffff), Math.random() * .4); p.sp.visible = true; });
+    gwave.position.copy(ball.position); gwave.material.color.copy(col); gwaveT = 1; gwave.visible = true;
+    const f = document.getElementById('rl-flash'); if (f) { f.style.setProperty('--fc', blue ? '42,139,255' : '255,138,31'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go'); }
+  }
+  function updateWorldFx(dt, now) {
+    const t = now / 1000, cars = [carMesh, window.RS && window.RS.carMesh2].filter(Boolean);
+    for (const p of PADS) {
+      if (p.t > 0) { p.t -= dt; if (p.t <= 0) p.t = 0; }
+      else for (const c of cars) { const dx = c.position.x - p.g.position.x, dz = c.position.z - p.g.position.z;
+        if (c.position.y < 3.3 && dx * dx + dz * dz < p.R * p.R) { p.t = p.big ? 10 : 4; break; } }
+      const on = p.t === 0, k = on ? 1 : 0.22;
+      p.hex.material.opacity += (0.9 * k - p.hex.material.opacity) * Math.min(dt * 10, 1);
+      p.gl.material.opacity += (0.45 * k - p.gl.material.opacity) * Math.min(dt * 10, 1);
+      if (p.orb) { p.orb.visible = on; p.orb.rotation.y = t * 1.6 + p.ph; p.orb.position.y = (p.big ? 1.6 : 0.8) + Math.sin(t * 2.2 + p.ph) * (p.big ? 0.18 : 0.08); if (p.big) p.orb.scale.setScalar(1 + Math.sin(t * 4 + p.ph) * 0.06); }
+      if (p.halo) { p.halo.visible = on; p.halo.position.y = p.orb.position.y; p.halo.material.opacity = 0.65 + Math.sin(t * 3 + p.ph) * 0.15; }
+    }
+    flame.visible = boostLevel > 0.03;
+    if (flame.visible) flame.children.forEach(m => { const L = boostLevel * (2.3 + Math.random() * 0.7) * m.userData.k, W = boostLevel * 0.5 * (0.9 + Math.random() * 0.2) * m.userData.k; m.scale.set(L, W, W); });
+    for (const p of gparts) { if (p.life <= 0) continue; p.life -= dt; if (p.life <= 0) { p.sp.visible = false; continue; }
+      p.v.y -= 14 * dt; p.sp.position.addScaledVector(p.v, dt); p.sp.scale.setScalar(0.5 + p.life * 0.8); p.sp.material.opacity = Math.min(1, p.life); }
+    if (gwaveT > 0) { gwaveT -= dt * 1.6; if (gwaveT <= 0) gwave.visible = false; else { gwave.scale.setScalar(4 + (1 - gwaveT) * 60); gwave.material.opacity = gwaveT * 0.8; } }
+  }
 
   const trailTex = (() => {
     const c = document.createElement('canvas'); c.width = c.height = 64;
@@ -1437,7 +1128,7 @@ async function main() {
     'font:700 28px sans-serif;letter-spacing:3px;color:#fff;background:rgba(0,0,0,0.45);text-shadow:0 0 12px #6cf;display:none;pointer-events:none';
   document.body.appendChild(toast);
   let toastT = 0;
-  function showToast(msg, secs) { toast.textContent = msg; toast.style.display = 'block'; toastT = secs; }
+  function showToast(msg, secs) { toast.textContent = msg; toast.className = /GOL|GOAL/i.test(msg) ? 'goal' : 'note'; toast.style.display = 'block'; toastT = secs; }
   function kickoff() {
     if (SIM.holdKickoff) return;   // gimnasio: partido terminado (forfeit incluido) o práctica; nada reinicia el juego
     Module.resetBall();
@@ -1455,7 +1146,7 @@ async function main() {
     const inMouth = Math.abs(b.x) < GOAL_HW && b.z < GOAL_H;
     // En el .wasm una rampa tapa la entrada del arco a ras de piso (la pelota se frena en |y|≈5100),
     // así que el gol se cuenta al llegar a la línea dentro de la boca del arco.
-    if (ay > 5035 && inMouth) { showToast('¡GOL!', 1.6); goalTimer = 1.6; if (window.RLAudio) window.RLAudio.goal(); }
+    if (ay > 5035 && inMouth) { showToast('¡GOL!', 1.6); goalTimer = 1.6; goalExplode(b.y > 0); if (window.RLAudio) window.RLAudio.goal(); }
     else if (ay > 5120 + r) { showToast('Pelota fuera: nuevo saque', 1.2); kickoff();
     } else if (Math.abs(b.x) > 4400 || b.z > 2400 || b.z < -150) {
       showToast('Pelota fuera: nuevo saque', 1.2); kickoff();
@@ -2198,6 +1889,7 @@ async function main() {
     }
 
     if (HOOKS.frame) HOOKS.frame(dt, currState);
+    updateWorldFx(dt, now);
     renderer.render(scene, camera);
     if (!window.__loaded) {
       window.__loaded = true;

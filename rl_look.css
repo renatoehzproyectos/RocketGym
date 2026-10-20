@@ -3,7 +3,7 @@
 :root {
   --rl-blue: #0d78d6; --rl-blue-d: #0a4c9a; --rl-orange: #ff8a1f; --rl-orange-d: #c25a00;
   --rl-ink: #f5fbff; --rl-boost: #ff9a1f;
-  --rl-font: "Arial Narrow", "Roboto Condensed", Impact, sans-serif;
+  --rl-font: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", Impact, sans-serif;
 }
 
 /* ---- Fuera el HUD de depuración mientras se entrena ---- */
@@ -100,3 +100,58 @@ body.gym-on #rl-boost.show { display: block; }
 #rl-snd { position: fixed; top: 10px; right: 106px; z-index: 40; width: 40px; height: 40px; border-radius: 6px; border: 1px solid #3d4a5c;
   background: rgba(20,26,36,.85); color: #ffb547; font-size: 18px; cursor: pointer; }
 body.gym-on #rl-snd { right: 58px; opacity: .6; } body.gym-on #rl-snd:hover { opacity: 1; }
+
+/* ===== RL fidelity pass ===== */
+/* Chat RL: abajo-izquierda, pequeño */
+#rl-chat { position: fixed; left: 14px; bottom: calc(env(safe-area-inset-bottom,0px) + 150px); z-index: 14; pointer-events: none; display: flex; flex-direction: column; gap: 3px; max-width: 42vw; }
+#rl-chat .row { font: 600 15px/1.25 var(--rl-font); color: #fff; text-shadow: 0 1px 3px #000, 0 0 6px rgba(0,0,0,.8); background: linear-gradient(90deg, rgba(4,10,22,.6), transparent); padding: 2px 14px 2px 8px; transition: opacity .7s; text-transform: none; }
+#rl-chat .row b { font-style: italic; font-weight: 900; text-transform: uppercase; letter-spacing: .03em; }
+#rl-chat .row b.b { color: #4da3ff; } #rl-chat .row b.o { color: #ff9a3c; }
+#rl-chat .row.out { opacity: 0; }
+/* Avisos genéricos: pequeños arriba, estilo notificación RL; solo el gol usa el banner gigante */
+#rs-toast.note { top: calc(env(safe-area-inset-top,0px) + 96px) !important; font: italic 800 17px var(--rl-font) !important; letter-spacing: .08em !important; text-shadow: 0 1px 4px #000 !important; animation: none; padding: 5px 0 !important; }
+#rs-toast.goal { top: 22% !important; }
+/* Marcador RL: más compacto, bloques de equipo a los lados del reloj */
+#gym .rl-sb .tm { min-width: clamp(52px, 5vw, 80px); font-size: clamp(24px, 2.6vw, 38px); padding: 3px 12px; border: 0; }
+#gym .rl-sb .clock { min-width: clamp(80px, 7.5vw, 116px); font-size: clamp(20px, 2.2vw, 32px); padding: 3px 12px; background: rgba(6,12,24,.82); border: 0; }
+#gym .rl-sb .tm.b { background: linear-gradient(180deg, #1f8fff 0%, #0b4fb5 100%); }
+#gym .rl-sb .tm.o { background: linear-gradient(180deg, #ffa33a 0%, #d9660a 100%); }
+/* Boost RL: disco oscuro, arco naranja grueso, número grande en cursiva */
+#rl-boost { filter: drop-shadow(0 4px 10px rgba(0,0,0,.6)); }
+#rl-boost::before { content: ""; position: absolute; inset: 12%; border-radius: 50%; background: radial-gradient(circle, rgba(4,10,22,.85) 55%, rgba(4,10,22,.35) 100%); }
+#rl-boost .num { text-shadow: 0 0 14px rgba(255,154,31,.5), 0 2px 6px #000; }
+#rl-boost .lbl { display: none; }
+#rl-boost .fil { stroke: #ff9a1f; filter: drop-shadow(0 0 5px rgba(255,154,31,.8)); }
+#rl-boost .trk { stroke: rgba(10,18,34,.7); }
+/* Nameplates: más limpios */
+.ntag { font-size: 13px !important; }
+
+/* ===== RL fidelity pass 2: menú, carga, viñeta, flash de gol, controles ===== */
+#rl-vig { position: fixed; inset: 0; z-index: 5; pointer-events: none; background: radial-gradient(ellipse at center, transparent 58%, rgba(0,6,18,.38) 100%); }
+#rl-flash { position: fixed; inset: 0; z-index: 6; pointer-events: none; opacity: 0; --fc: 255,255,255; background: radial-gradient(ellipse at center, rgba(var(--fc),.55), rgba(var(--fc),.1) 70%); }
+#rl-flash.go { animation: rlFlash 1.1s ease-out; }
+@keyframes rlFlash { 0% { opacity: 0; } 8% { opacity: 1; } 100% { opacity: 0; } }
+#rs-toast.goal { background: linear-gradient(90deg, transparent, rgba(3,10,24,.8) 20%, rgba(3,10,24,.8) 80%, transparent) !important; }
+
+/* Menú principal estilo RL */
+#start-menu { font-family: var(--rl-font) !important; background: linear-gradient(90deg, rgba(2,8,20,.78), rgba(2,8,20,0) 62%) !important; }
+#start-menu .menu-title { font: italic 900 clamp(40px, 7vw, 76px)/1 var(--rl-font); color: #fff; letter-spacing: .03em; text-shadow: 0 0 24px rgba(13,120,214,.85), 0 4px 0 rgba(0,0,0,.35); margin-bottom: 14px; }
+#start-menu .menu-label { font: 800 13px var(--rl-font); letter-spacing: .22em; text-transform: uppercase; color: #7fd0ff; margin: 10px 0 4px; }
+#start-menu button { border: 1px solid rgba(193,236,255,.7); border-radius: 0; transform: skewX(-9deg); min-width: min(320px, 70vw); padding: 12px 22px; text-align: left; cursor: pointer;
+  background: linear-gradient(180deg, rgba(10,153,221,.96), rgba(4,91,158,.96)); color: #fff; font: italic 900 clamp(18px, 2.4vw, 26px) var(--rl-font); letter-spacing: .04em; text-transform: uppercase;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 6px 14px rgba(0,10,28,.5); transition: transform .12s, filter .12s, background .12s; }
+#start-menu button > span { display: inline-block; transform: skewX(9deg); }
+#start-menu button:hover, #start-menu button:active { transform: skewX(-9deg) translateX(8px); background: linear-gradient(180deg, #fff, #cfe9ff); color: #06325c; }
+
+/* Pantalla de carga RL */
+#loading { background: radial-gradient(ellipse at 50% 40%, #0d3a78 0%, #061529 55%, #020712 100%) !important; }
+.loading-title { font: italic 900 clamp(38px, 8vw, 72px)/1 var(--rl-font) !important; letter-spacing: .04em !important; text-shadow: 0 0 26px rgba(13,120,214,.9), 0 4px 0 rgba(0,0,0,.4); }
+.loading-bar-wrap { height: 10px !important; border-radius: 0 !important; transform: skewX(-20deg); }
+.loading-bar { border-radius: 0 !important; background: linear-gradient(90deg, #0d78d6, #ff9a1f) !important; }
+.loading-pct, .loading-status { font-family: var(--rl-font); font-style: italic; letter-spacing: .08em; }
+
+/* Controles táctiles: translúcidos, tipo consola */
+.action-btn, .throttle-btn { font-family: var(--rl-font) !important; font-style: italic; font-weight: 900 !important; letter-spacing: .04em; backdrop-filter: blur(2px); }
+.action-btn.primary { box-shadow: 0 0 14px rgba(255,154,31,.35); }
+#btn-boost { background: radial-gradient(circle at 35% 30%, #ffc566, #d9780a) !important; border-color: rgba(255,230,180,.8) !important; color: #2a1400 !important; }
+#btn-jump { background: radial-gradient(circle at 35% 30%, #4db3ff, #0b5fc2) !important; border-color: rgba(190,230,255,.8) !important; }

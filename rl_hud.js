@@ -24,3 +24,15 @@
     el.classList.toggle('low', v <= 20);
   })();
 })();
+
+// Chat estilo RL: abajo a la izquierda, texto pequeño, nombre con el color del equipo, se desvanece solo.
+(function () {
+  const box = document.createElement('div'); box.id = 'rl-chat'; document.body.appendChild(box);
+  window.RLChat = { say(name, team, text) {
+    const r = document.createElement('div'); r.className = 'row';
+    const n = document.createElement('b'); n.className = team === 0 ? 'b' : 'o'; n.textContent = name + ': ';
+    r.appendChild(n); r.appendChild(document.createTextNode(text)); box.appendChild(r);
+    while (box.children.length > 4) box.firstChild.remove();
+    setTimeout(() => r.classList.add('out'), 4200); setTimeout(() => r.remove(), 5000);
+  } };
+})();

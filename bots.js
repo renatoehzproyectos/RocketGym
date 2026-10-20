@@ -100,7 +100,7 @@
           w.busy = false;
           if (m.err) log(type + ': ' + m.err);
           for (const k in m.c) applyCtl(+k, m.c[k]);
-          if (m.chat) m.chat.forEach(([i, id]) => { const e = roster[i - 1]; toast((e ? e.bot : 'Bot') + ': ' + chatText(id), 2.5); });
+          if (m.chat) m.chat.forEach(([i, id]) => { const e = roster[i - 1]; if (window.RLChat) window.RLChat.say((e ? e.bot : 'Bot'), e ? e.team : 1, chatText(id)); else toast((e ? e.bot : 'Bot') + ': ' + chatText(id), 2.5); });
         }
       };
       log('Cargando ' + type + ' (primera vez tarda unos segundos)…'); toast('Cargando ' + type + '…', 3);

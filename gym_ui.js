@@ -87,7 +87,7 @@
     function hudHtml(h) {
       const clock = h.overtime ? 'OT +' + fmt(h.clock) : fmt(h.clock);
       return '<div class="rl-sb"><div class="tm b"><span>' + h.score[0] + '</span></div><div class="clock' + (h.overtime ? ' ot' : '') + '"><span>' + clock + '</span></div><div class="tm o"><span>' + h.score[1] + '</span></div></div>' +
-        '<div class="rl-sub">' + esc(h.opponents.join(' + ')) + ' · 4-goal lead = forfeit</div>';
+        '<div class="rl-sub" style="display:none">' + esc(h.opponents.join(' + ')) + ' · 4-goal lead = forfeit</div>';
     }
 
     function render(v) {
