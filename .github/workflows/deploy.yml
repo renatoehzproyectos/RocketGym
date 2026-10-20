@@ -1,9 +1,9 @@
-name: Deploy RocketSim Web
+name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ main, master ]
-  workflow_dispatch: {}
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -25,6 +25,8 @@ jobs:
       - name: Prepare site (anti-cache + version tag)
         run: |
           set -e
+          # Falla con un mensaje claro (el grep -q a secas fallaba en silencio)
+          chk() { grep -q -- "$1" "$2" || { echo "::error::Falta '$1' en $2"; exit 1; }; }
           # Localiza el proyecto: raíz del repo o una subcarpeta (si se subió con una carpeta envolvente)
           IDX=$(find . -maxdepth 3 -name index.html -not -path './_site/*' -not -path './.git/*' -print -quit)
           if [ -z "$IDX" ]; then
@@ -34,13 +36,14 @@ jobs:
           cd "$(dirname "$IDX")"
           echo "Proyecto en: $(pwd)"
           mkdir -p _site/dist
-          cp index.html style.css customui.css game.js gamepad.js multiplayer.js bots.js _site/
-          cp recorder.js gym_rules.js gym_core.js gym_ui.js _site/
+          cp index.html style.css customui.css rl_look.css game.js gamepad.js multiplayer.js nametags.js bots.js _site/
+          cp recorder.js gym_rules.js gym_core.js gym_ui.js rl_hud.js audio.js _site/
           # Gimnasio: rlcoach (solo los módulos que lista webbots/gym_manifest.json) para Pyodide
           python3 tools/gym/build_manifest.py
           python3 -c "import json,shutil,pathlib; m=json.load(open('webbots/gym_manifest.json')); [(pathlib.Path('_site',f).parent.mkdir(parents=True,exist_ok=True), shutil.copy(f,pathlib.Path('_site',f))) for f in m['files']]"
           cp dist/rocketsim.js _site/dist/
           cp -r assets _site/
+          cp -r audio _site/
           # Bots que corren en el navegador (Pyodide): sin instalar nada
           cp -r webbots _site/
           find _site -name __pycache__ -type d -prune -exec rm -rf {} +
@@ -48,22 +51,22 @@ jobs:
           cp dist/rocketsim.wasm "_site/dist/rocketsim.${BUILD_ID}.wasm"
           sed -i "s/rocketsim\.wasm/rocketsim.${BUILD_ID}.wasm/g" _site/dist/rocketsim.js
           sed -i "s#\./dist/rocketsim\.js#./dist/rocketsim.js?v=${BUILD_ID}#" _site/game.js
-          sed -i "s/?v=[0-9]*\"/?v=${BUILD_ID}\"/g" _site/index.html
+          # [0-9A-Za-z.-]* (antes solo dígitos: una versión con letras rompía el reemplazo)
+          sed -i "s/?v=[0-9A-Za-z.-]*\"/?v=${BUILD_ID}\"/g" _site/index.html
           sed -i "s/content=\"dev\"/content=\"${BUILD_ID}\"/; s/build dev/build ${BUILD_ID}/" _site/index.html
           echo "{\"build\":\"${BUILD_ID}\"}" > _site/version.json
           touch _site/.nojekyll
-          # Verificación: falla el job si algún reemplazo no se aplicó
-          grep -q "rocketsim.${BUILD_ID}.wasm" _site/dist/rocketsim.js
-          grep -q "rocketsim.js?v=${BUILD_ID}" _site/game.js
-          grep -q "style.css?v=${BUILD_ID}" _site/index.html
-          grep -q "game.js?v=${BUILD_ID}" _site/index.html
-          grep -q "customui.css?v=${BUILD_ID}" _site/index.html
-          grep -q "multiplayer.js?v=${BUILD_ID}" _site/index.html
-          grep -q "bots.js?v=${BUILD_ID}" _site/index.html
-          grep -q "gym_core.js?v=${BUILD_ID}" _site/index.html
-          grep -q "gym_ui.js?v=${BUILD_ID}" _site/index.html
+          # Verificación: falla el job si algún reemplazo o archivo no se aplicó
+          chk "rocketsim.${BUILD_ID}.wasm" _site/dist/rocketsim.js
+          chk "rocketsim.js?v=${BUILD_ID}" _site/game.js
+          for f in style.css customui.css rl_look.css game.js multiplayer.js nametags.js bots.js gym_core.js gym_ui.js rl_hud.js audio.js; do
+            chk "$f?v=${BUILD_ID}" _site/index.html
+          done
+          for f in rl_look.css rl_hud.js audio.js nametags.js audio/manifest.json audio/engine_idle.wav; do
+            test -f "_site/$f" || { echo "::error::No se copió $f a _site"; exit 1; }
+          done
           test -f _site/tools/rlcoach/src/rlcoach/gym/analysis.py
-          grep -q "v1.0 build ${BUILD_ID}" _site/index.html
+          chk "v1.0 build ${BUILD_ID}" _site/index.html
           if [ "$(pwd)" != "$GITHUB_WORKSPACE" ]; then rm -rf "$GITHUB_WORKSPACE/_site"; mv _site "$GITHUB_WORKSPACE/_site"; fi
 
       - uses: actions/upload-pages-artifact@v3

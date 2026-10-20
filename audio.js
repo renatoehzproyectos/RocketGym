@@ -16,9 +16,10 @@
   let manifest = null, btn = null;
 
   // ---------------------------------------------------------------- carga
-  const fetching = fetch('audio/manifest.json?v=20261020b').then((r) => r.json()).then((m) => {
+  const BUILD = ((document.querySelector('meta[name="build-id"]') || {}).content) || 'dev';   // lo reemplaza el workflow en cada deploy
+  const fetching = fetch('audio/manifest.json?v=' + BUILD).then((r) => r.json()).then((m) => {
     manifest = m;
-    return Promise.all(Object.keys(m).map((k) => fetch('audio/' + m[k].file + '?v=20261020b').then((r) => r.arrayBuffer()).then((ab) => { raw[k] = ab; })));
+    return Promise.all(Object.keys(m).map((k) => fetch('audio/' + m[k].file + '?v=' + BUILD).then((r) => r.arrayBuffer()).then((ab) => { raw[k] = ab; })));
   }).catch((e) => console.warn('[audio] no se pudo cargar audio/:', e));
 
   const decode = (ab) => new Promise((res, rej) => { const p = ctx.decodeAudioData(ab, res, rej); if (p && p.catch) p.catch(rej); });

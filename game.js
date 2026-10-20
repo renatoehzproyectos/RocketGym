@@ -12,7 +12,7 @@
 // Antes: getState 2-4x/frame → GC spikes ~32ms. Ahora 1x/frame (+ Into cuando haya).
 
 import RocketSimModule from './dist/rocketsim.js';
-import { pollGamepad } from './gamepad.js?v=20261020b';
+import { pollGamepad } from './gamepad.js?v=6';
 
 const TICK_RATE = 120;
 const TICK_TIME = 1 / TICK_RATE;
