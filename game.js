@@ -689,6 +689,64 @@ async function main() {
     } catch (err) { console.warn('No se pudo cargar el estadio:', err); }
   })();
 
+  // ---------- Pelota y auto (modelos GLB) ----------
+  const ballState0 = Module.getBallState();
+  const BALL_RADIUS_M = (ballState0.radius || 91.25) * UU_TO_M;
+  const ball = new THREE.Group(); ball.name = 'ball'; scene.add(ball);
+  const ballPlaceholder = new THREE.Mesh(new THREE.SphereGeometry(BALL_RADIUS_M, 24, 16), new THREE.MeshStandardMaterial({ color: 0x9e9c9d, roughness: 0.3, metalness: 0.4 }));
+  ball.add(ballPlaceholder);
+  (async () => {
+    try {
+      const gltf = await new Promise((res, rej) => new THREE.GLTFLoader().load('assets/ball.glb', res, undefined, rej));
+      const model = gltf.scene;
+      const box = new THREE.Box3().setFromObject(model), size = new THREE.Vector3(), ctr = new THREE.Vector3();
+      box.getSize(size); box.getCenter(ctr);
+      const k = (BALL_RADIUS_M * 2) / Math.max(size.x, size.y, size.z);
+      const holder = new THREE.Group();
+      model.position.sub(ctr); holder.add(model); holder.scale.setScalar(k);
+      const ballTex = loadTex('assets/ball_d.webp');
+      model.traverse(o => {
+        if (!o.isMesh) return;
+        o.frustumCulled = false;
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        mats.forEach((m, i) => { if (i === 0 && o.geometry.attributes.uv && m.name === 'Mat.3') { m.map = ballTex; m.color.set(0xffffff); m.needsUpdate = true; } m.envMap = skyEnvTex || carEnvMap; });
+      });
+      ball.remove(ballPlaceholder); ball.add(holder);
+    } catch (err) { console.warn('No se pudo cargar la pelota:', err); }
+  })();
+
+  const carMesh = new THREE.Group(); carMesh.name = 'carMesh';
+  scene.add(carMesh);
+  const wheelRig = [];
+  let wheelSpin = 0;
+  const carPlaceholder = new THREE.Mesh(new THREE.BoxGeometry(hb.x * UU_TO_M, hb.z * UU_TO_M, hb.y * UU_TO_M), new THREE.MeshStandardMaterial({ color: 0x2a6fd6 }));
+  carPlaceholder.position.y = 20.75 * UU_TO_M; carMesh.add(carPlaceholder);
+  (async () => {
+    try {
+      const gltf = await new Promise((res, rej) => new THREE.GLTFLoader().load('assets/fennec.glb', res, undefined, rej));
+      const model = gltf.scene;
+      model.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(model), size = new THREE.Vector3(), ctr = new THREE.Vector3();
+      box.getSize(size); box.getCenter(ctr);
+      // El largo del modelo (X) se ajusta al largo real de la hitbox (con un poco de margen por los parachoques).
+      const s = (hb.x * UU_TO_M * 1.04) / size.x;
+      const holder = new THREE.Group(); holder.scale.setScalar(s);
+      // x: centro del modelo en el centro de la hitbox · y: base de las ruedas a 17 uu bajo el origen del auto (altura en reposo)
+      holder.position.set(-ctr.x * s + 13.88 * UU_TO_M, -box.min.y * s - 17 * UU_TO_M, -ctr.z * s);
+      holder.add(model);
+      model.traverse(o => {
+        if (o.isMesh) {
+          o.frustumCulled = false;
+          const mats = Array.isArray(o.material) ? o.material : [o.material];
+          mats.forEach(m => { m.envMap = carEnvMap; m.envMapIntensity = 1.0; m.needsUpdate = true; });
+        }
+        const mm = /^Alpha - (F|B)(R|L)/.exec(o.name || '');
+        if (mm) wheelRig.push({ wheel: o, front: mm[1] === 'F', right: mm[2] === 'R', baseY: o.position.y, baseQuaternion: o.quaternion.clone(), modelScale: s });
+      });
+      carMesh.remove(carPlaceholder); carMesh.add(holder);
+    } catch (err) { console.warn('No se pudo cargar el Fennec:', err); }
+  })();
+
   // Boost pads: grandes (dorado, 100%) y chicos (blanco, 12%) con las coordenadas dadas.
   // Los 34 chicos no vinieron todos con coordenadas exactas; se dibujan los de la línea
   // central (Y=0) que sí se dieron -- el resto de carriles quedaría por agregar si hace falta.
@@ -1857,8 +1915,8 @@ async function main() {
         // GLB matrices + source.rotation.x=π/2 make: local Y = axle (lateral), local Z = up.
         // Steer around up (local Z), roll-spin around axle (local Y).
         // Invert visual steer so right input turns wheels right
-        if (rig.front) rig.wheel.rotateZ(ctl.steer * 0.48);
-        rig.wheel.rotateY(wheelSpin);
+        if (rig.front) rig.wheel.rotateZ(-ctl.steer * 0.48);
+        rig.wheel.rotateY(rig.right ? wheelSpin : -wheelSpin);
       }
 
       // Cámara: cálculo en espacio RocketSim (UU), convertido a three.js solo al final.
