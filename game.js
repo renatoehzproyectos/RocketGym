@@ -1371,6 +1371,35 @@ async function main() {
     }
   }
 
+  // Chispas de salto: las mismas chispas del golpe a la pelota (spawnSpark), pero bajo el auto.
+  // Dos destellos, uno por eje, asomando por los costados de la carrocería. rot = 9 floats (fila 0 frente, 3 derecha, 6 arriba).
+  let prevJumpBtn = false;
+  function spawnJumpSparks(x, y, z, rot) {
+    const fx = rot[0], fy = rot[1], fz = rot[2];
+    const rx = rot[3], ry = rot[4], rz = rot[5];
+    const ux = rot[6], uy = rot[7], uz = rot[8];
+    const drop = hb.z * 0.5 - 4;            // hasta la base del auto
+    const ax = hb.x * 0.28, side = hb.y * 0.42;
+    const bx = x - ux * drop, by = y - uy * drop, bz = z - uz * drop;
+    for (let i = 0; i < 2; i++) {
+      const s = i === 0 ? 1 : -1;
+      spawnSpark(
+        bx + fx * ax * s + rx * side * s,
+        by + fy * ax * s + ry * side * s,
+        Math.max(bz + fz * ax * s + rz * side * s, 26),   // no hundir el sprite en el piso
+        0.5
+      );
+    }
+  }
+  // Solo si el salto "pega": no si ya gastó el doble salto / flip.
+  function jumpSparksFor(id, pos, rot) {
+    try {
+      const cs = Module.getCarState(id);
+      if (!cs || cs.hasDoubleJumped || cs.hasFlipped) return;
+      spawnJumpSparks(pos.x, pos.y, pos.z, rot);
+    } catch (e) { /* sin chispas, nada grave */ }
+  }
+
   // ---------- Contención: tapa los huecos de la colisión del .wasm ----------
   // El módulo deja la zona del arco (x entre ~-800 y 800) como un hueco de TODA la altura en la pared de fondo
   // y no hay piso detrás: un auto podía salir del mapa y caer al vacío. El .wasm no se puede modificar, así que
@@ -1411,11 +1440,15 @@ async function main() {
     if (SIM.holdKickoff) return;   // gimnasio: partido terminado (forfeit incluido) o práctica; nada reinicia el juego
     Module.resetBall();
     Module.setCarState(carId, 0, -2560, 100, 0, 0, 0);
+    // Refrescar el snapshot ya: si el sim está en pausa (cuenta regresiva) no habría ticks y checkBall
+    // seguiría viendo la pelota vieja dentro del arco -> gol repetido -> la cuenta se reiniciaba (3-2-3-2...).
+    try { snapshotInto(currState); snapshotInto(prevState); } catch (e) { /* sin snapshot: queda el guard de pausa */ }
     if (HOOKS.kickoff) HOOKS.kickoff();
   }
   function checkBall(dt) {
     if (toastT > 0) { toastT -= dt; if (toastT <= 0) toast.style.display = 'none'; }
     if (goalTimer > 0) { goalTimer -= dt; if (goalTimer <= 0) kickoff(); return; }
+    if (SIM.paused) return;   // cuenta regresiva del saque: no evaluar gol/pelota fuera con estado viejo
     const b = currState.ballPos, r = 91.25, ay = Math.abs(b.y);
     const inMouth = Math.abs(b.x) < GOAL_HW && b.z < GOAL_H;
     // En el .wasm una rampa tapa la entrada del arco a ras de piso (la pelota se frena en |y|≈5100),
@@ -1936,6 +1969,7 @@ async function main() {
     getInfBoost: () => infBoost,
     resetBall: doResetBall,
     containCar, isGoalPause: () => goalTimer > 0,
+    jumpSparks: spawnJumpSparks,
   };
   window.dispatchEvent(new Event('rs-ready'));
 
@@ -1960,6 +1994,8 @@ async function main() {
     // La autoridad pasa al visitante si la pestaña del host se oculta (ver multiplayer.js).
     const mpRole = window.__mpRole;
     const mpSim = !mpRole || window.__mpSimulates !== false;
+    if (ctl.jump && !prevJumpBtn && !SIM.paused && mpRole !== 'guest') jumpSparksFor(carId, currState.carPos, currState.carRot);
+    prevJumpBtn = ctl.jump;
     const mpDraw = !!mpRole && !(mpRole === 'host' && mpSim); // multiplayer.js dibuja meshes/cámara
     if (mpSim) {
       const rc = window.__mpRemoteControls;

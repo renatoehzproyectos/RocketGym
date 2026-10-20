@@ -113,6 +113,13 @@
   function applyCtl(index, c) {
     const e = roster[index - 1]; if (!e) return;
     e.last = c;   // último control aplicado (lo lee Bots.cars() para el recorder)
+    // Chispas bajo el auto al empezar a apretar salto (flanco), si el salto todavía cuenta.
+    const jmp = !!c[5];
+    if (jmp && !e.jumpHeld && RS.jumpSparks) {
+      const id = pool[e.poolIdx].id, cs = RS.Module.getCarState(id);
+      if (cs && cs.pos && !cs.hasDoubleJumped && !cs.hasFlipped) RS.jumpSparks(cs.pos.x, cs.pos.y, cs.pos.z, vec9(cs.rot));
+    }
+    e.jumpHeld = jmp;
     RS.Module.setCarControls(pool[e.poolIdx].id, c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]);
   }
 
@@ -158,6 +165,13 @@
     const q = RS.THREE.Quaternion ? new RS.THREE.Quaternion() : null, pv = { x: 0, y: 0, z: 0 };
     (function draw() {
       requestAnimationFrame(draw);
+      // Name tags: se proyectan ANTES de mover las mallas, así coinciden con lo que ya se renderizó este frame.
+      const NT = window.NameTags;
+      if (NT) {
+        const cnt = {}, lab = {};
+        roster.forEach(e => { cnt[e.bot] = (cnt[e.bot] || 0) + 1; lab[e.poolIdx] = { name: cnt[e.bot] > 1 ? e.bot + ' ' + cnt[e.bot] : e.bot, team: e.team }; });
+        pool.forEach((p, i) => { const l = lab[i]; if (p.used && l) NT.place('bot' + i, l.name, l.team, p.mesh); else NT.hide('bot' + i); });
+      }
       pool.forEach(p => {
         p.mesh.visible = p.used;
         if (!p.used) return;

@@ -53,6 +53,7 @@
   let myCountry = null;
   let myCountryCode = null;
   let remoteName = 'Rival';
+  window.__mpGetRemote = function () { return { name: remoteName, role: role, linked: linked }; };   // lo lee nametags.js
 
   let _q0 = null, _q1 = null;
   const _p0 = { x: 0, y: 0, z: 0 };
