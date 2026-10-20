@@ -22,20 +22,13 @@
   const BUSY = { bots: 'Loading bots…', analyzing: 'RLCoach is analysing your match…', demo_loading: 'Loading the stronger bot…' };
   const ERR = { bot_timeout: 'The bots took too long to load.', bot_failed: 'A bot failed to load (see console).', no_recording: 'No recording was captured.', no_errors: 'No practiceable mistake found this time.' };
 
+  // Solo layout; todo el aspecto (estilo RL / ventana ImGui) vive en rl_look.css
   const css = `
-  #gym{position:fixed;inset:0;z-index:60;pointer-events:none;font:600 14px system-ui,sans-serif;color:#fff}
-  #gym .card{pointer-events:auto;background:rgba(10,16,30,.92);border:1px solid #2c4a7a;border-radius:14px;padding:14px 16px;box-shadow:0 8px 30px #0008}
-  #gym .center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(92vw,420px)}
+  #gym{position:fixed;inset:0;z-index:60;pointer-events:none}
+  #gym .center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(92vw,440px)}
   #gym .top{position:absolute;left:50%;top:max(8px,env(safe-area-inset-top));transform:translateX(-50%);width:min(94vw,460px)}
-  #gym h2{margin:0 0 8px;font-size:18px;letter-spacing:1px} #gym p{margin:6px 0;opacity:.9;font-weight:500}
-  #gym .row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0} #gym .row>*{flex:1}
-  #gym button{pointer-events:auto;border:0;border-radius:10px;padding:11px 12px;font:700 14px system-ui;background:#2f6fdb;color:#fff;min-width:60px}
-  #gym button.alt{background:#27344f} #gym button.on{background:#e8a400;color:#111} #gym button:disabled{opacity:.4}
-  #gym .hud{display:flex;justify-content:center;align-items:center;gap:14px;background:rgba(10,16,30,.8);border-radius:12px;padding:6px 14px;font-size:22px}
-  #gym .b{color:#5ab0ff} #gym .o{color:#ffa94d} #gym small{opacity:.7;font-weight:500}
-  #gym .cd{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);font:800 120px system-ui;text-shadow:0 0 30px #000}
-  #gym .tag{display:inline-block;padding:2px 8px;border-radius:8px;background:#27344f;font-size:12px;margin-right:6px}
-  #gym .good{color:#6dff9a} #gym .bad{color:#ff7a7a} #gym .busy{opacity:.85;text-align:center}`;
+  #gym .cd{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%)}
+  #gym .row{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0} #gym .row>*{flex:1}`;
 
   const fmt = (t) => { const m = Math.floor(t / 60), s = Math.floor(t % 60); return m + ':' + String(s).padStart(2, '0'); };
   const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
@@ -87,16 +80,18 @@
       else if (act === 'speed') core.act('speed', { value: +val });
       else core.act(act);
     });
-    const btn = (label, act, cls, extra) => '<button class="' + (cls || '') + '" data-act="' + act + '" ' + (extra || '') + '>' + label + '</button>';
+    let lastSnd = null;   // un sonido por resultado/evaluación (render se llama varias veces)
+    const snd = (key, name) => { if (key && key !== lastSnd) { lastSnd = key; if (window.RLAudio) window.RLAudio.ui(name); } };
+    const btn = (label, act, cls, extra) => '<button class="' + (cls || '') + '" data-act="' + act + '" ' + (extra || '') + '><span>' + label + '</span></button>';
 
     function hudHtml(h) {
       const clock = h.overtime ? 'OT +' + fmt(h.clock) : fmt(h.clock);
-      return '<div class="hud"><span class="b">' + h.score[0] + '</span><span>' + clock + '</span><span class="o">' + h.score[1] + '</span></div>' +
-        '<div style="text-align:center"><small>' + esc(h.opponents.join(' + ')) + ' · first to a 4-goal lead wins by forfeit</small></div>';
+      return '<div class="rl-sb"><div class="tm b"><span>' + h.score[0] + '</span></div><div class="clock' + (h.overtime ? ' ot' : '') + '"><span>' + clock + '</span></div><div class="tm o"><span>' + h.score[1] + '</span></div></div>' +
+        '<div class="rl-sub">' + esc(h.opponents.join(' + ')) + ' · 4-goal lead = forfeit</div>';
     }
 
     function render(v) {
-      top.innerHTML = ''; center.innerHTML = ''; center.style.display = 'none';
+      top.innerHTML = ''; top.className = 'top'; center.innerHTML = ''; center.style.display = 'none';
       const show = (html) => { center.style.display = 'block'; center.innerHTML = '<div class="card">' + html + '</div>'; };
       if (v.busy) { show('<div class="busy">' + (BUSY[v.busy] || '…') + '</div>'); if (v.phase !== 'review') return; center.style.display = 'none'; }
       if (v.phase === 'menu') {
@@ -112,6 +107,7 @@
         const r = v.result;
         if (!r) { show('<h2>Match over</h2><p class="bad">' + esc(ERR[v.error] || v.error || '') + '</p><div class="row">' + btn('PLAY AGAIN', 'next_match') + btn('MENU', 'menu', 'alt') + '</div>'); return; }
         const win = r.outcome !== 'lost';
+        snd(r, win ? 'good' : 'bad');
         show('<h2 class="' + (win ? 'good' : 'bad') + '">' + (win ? 'VICTORY' : 'DEFEAT') + ' ' + r.score[0] + '–' + r.score[1] + '</h2>' +
           '<p><span class="tag">' + END[r.result.reason] + '</span>vs ' + esc(r.bot) + '</p>' +
           '<p>' + (r.outcome === 'advance' ? 'Convincing win. Next opponent: <b>' + esc(r.unlocked) + '</b>.' : 'Close one. Same opponent next, win by 2+ to move up.') + '</p>' +
@@ -136,17 +132,19 @@
           body += '<p class="busy">Checking whether the mistake is fixed…</p>';
         } else if (r.mode === 'result') {
           const ev = r.evaluation, fixed = ev && ev.corrected;
+          if (ev) snd(ev, fixed ? 'good' : 'bad');
           body += '<p class="' + (fixed ? 'good' : 'bad') + '"><b>' + (fixed ? 'Mistake corrected ✓' : 'Not yet') + '</b>' + (fixed ? '' : ': ' + (ev.reasons || []).map((x) => REASON[x] || x).join(', ')) + '</p>' +
             '<div class="row">' + (fixed ? btn('NEXT MISTAKE', 'next') : btn('TRY AGAIN', 'retry') + (r.demo.available ? btn('WATCH BOT', 'demo', 'alt') : '') + btn('SKIP', 'skip', 'alt')) + '</div>';
         }
-        top.innerHTML = '<div class="card">' + body + '</div>';
+        top.className = 'top plug';
+        top.innerHTML = '<div class="card cui"><div class="cui-t"><b>RocketGym</b><span>' + (r.idx + 1) + '/' + r.total + '</span></div><div class="cui-b">' + body + '</div></div>';
       } else if (v.phase === 'rematch' && v.rematch) {
         const r = v.rematch;
         show('<h2>READY FOR THE REMATCH</h2><p>' + r.fixed + '/' + r.total + ' key mistakes fixed. Prove it against <b>' + esc(r.opponents.join(' + ')) + '</b> (' + esc(r.rank) + ').</p>' +
           '<div class="row">' + btn('REMATCH', 'rematch') + btn('MENU', 'menu', 'alt') + '</div>');
       }
     }
-    return { render, hud: (h) => { if (h && core.state.phase === 'match') top.innerHTML = hudHtml(h); }, countdown: (n) => { cd.textContent = n > 0 ? n : (n === 0 ? 'GO!' : ''); if (n === 0) setTimeout(() => { cd.textContent = ''; }, 600); } };
+    return { render, hud: (h) => { if (h && core.state.phase === 'match') top.innerHTML = hudHtml(h); }, countdown: (n) => { if (window.RLAudio) window.RLAudio.countdown(n); cd.className = 'cd'; cd.textContent = n > 0 ? n : (n === 0 ? 'GO!' : ''); if (n >= 0) { void cd.offsetWidth; cd.classList.add('pop'); if (n === 0) cd.classList.add('go'); } } };
   }
 
   // ---------------------------------------------------------------- cableado
@@ -161,6 +159,7 @@
     proxy.v = build(core, store);
     window.__gymRender = proxy.v.render;     // para pruebas de interfaz (tools/gym/test_ui.mjs)
     window.__gym = core;
+    document.body.classList.add('gym-on');
     (function loop() { requestAnimationFrame(loop); core.frame(); })();   // se registra después del bucle de game.js: corre tras la física
     core.open(info);
   }

@@ -1,0 +1,137 @@
+{
+ "engine_idle": {
+  "file": "engine_idle.wav",
+  "loop": true,
+  "src": "Motors/SFX_Motor_OctaneMK2/SFX_Motor_OctaneMK2_0011.ogg"
+ },
+ "engine_mid": {
+  "file": "engine_mid.wav",
+  "loop": true,
+  "src": "Motors/SFX_Motor_OctaneMK2/SFX_Motor_OctaneMK2_0008.ogg"
+ },
+ "engine_high": {
+  "file": "engine_high.wav",
+  "loop": true,
+  "src": "Motors/SFX_Motor_OctaneMK2/SFX_Motor_OctaneMK2_0003.ogg"
+ },
+ "boost_loop": {
+  "file": "boost_loop.wav",
+  "loop": true,
+  "src": "Boosts/SFX_Boost_Standard/SFX_Boost_Standard_0003.ogg"
+ },
+ "boost_start": {
+  "file": "boost_start.mp3",
+  "loop": false,
+  "src": "Boosts/SFX_Boost_Standard/SFX_Boost_Standard_0002.ogg"
+ },
+ "boost_end": {
+  "file": "boost_end.mp3",
+  "loop": false,
+  "src": "Boosts/SFX_Boost_Standard/SFX_Boost_Standard_0001.ogg"
+ },
+ "skid_loop": {
+  "file": "skid_loop.wav",
+  "loop": true,
+  "src": "Uncategorized/SFX_Car_Tires/SFX_Car_Tires_0001.ogg"
+ },
+ "hit_soft_1": {
+  "file": "hit_soft_1.mp3",
+  "loop": false,
+  "src": "Uncategorized/SFX_Impacts/SFX_Impacts_0540.ogg"
+ },
+ "hit_soft_2": {
+  "file": "hit_soft_2.mp3",
+  "loop": false,
+  "src": "Uncategorized/SFX_Impacts/SFX_Impacts_0276.ogg"
+ },
+ "hit_med_1": {
+  "file": "hit_med_1.mp3",
+  "loop": false,
+  "src": "Uncategorized/SFX_Impacts/SFX_Impacts_0054.ogg"
+ },
+ "hit_med_2": {
+  "file": "hit_med_2.mp3",
+  "loop": false,
+  "src": "Uncategorized/SFX_Impacts/SFX_Impacts_0165.ogg"
+ },
+ "hit_hard_1": {
+  "file": "hit_hard_1.mp3",
+  "loop": false,
+  "src": "Uncategorized/SFX_Impacts/SFX_Impacts_0091.ogg"
+ },
+ "hit_hard_2": {
+  "file": "hit_hard_2.mp3",
+  "loop": false,
+  "src": "Uncategorized/SFX_Impacts/SFX_Impacts_0369.ogg"
+ },
+ "hit_hard_3": {
+  "file": "hit_hard_3.mp3",
+  "loop": false,
+  "src": "Uncategorized/SFX_Impacts/SFX_Impacts_0013.ogg"
+ },
+ "jump": {
+  "file": "jump.mp3",
+  "loop": false,
+  "src": "Uncategorized/SFX_Car_Movements/SFX_Car_Movements_0001.ogg"
+ },
+ "flip": {
+  "file": "flip.mp3",
+  "loop": false,
+  "src": "Uncategorized/SFX_Car_Movements/SFX_Car_Movements_0015.ogg"
+ },
+ "land": {
+  "file": "land.mp3",
+  "loop": false,
+  "src": "Uncategorized/SFX_Car_Movements/SFX_Car_Movements_0022.ogg"
+ },
+ "goal": {
+  "file": "goal.mp3",
+  "loop": false,
+  "src": "GoalExplosions/SFX_GoalExplosion_NewDefault/SFX_GoalExplosion_NewDefault_0001.ogg"
+ },
+ "crowd_cheer": {
+  "file": "crowd_cheer.mp3",
+  "loop": false,
+  "src": "Crowds/SFX_BG_Crowd/SFX_BG_Crowd_0107.ogg"
+ },
+ "crowd_loop": {
+  "file": "crowd_loop.mp3",
+  "loop": true,
+  "src": "Crowds/SFX_BG_Crowd/SFX_BG_Crowd_0011.ogg"
+ },
+ "cd_tick": {
+  "file": "cd_tick.mp3",
+  "loop": false,
+  "src": "UserInterface/SFX_UI_Countdown/SFX_UI_Countdown_0002.ogg"
+ },
+ "cd_go": {
+  "file": "cd_go.mp3",
+  "loop": false,
+  "src": "UserInterface/SFX_UI_Countdown/SFX_UI_Countdown_0003.ogg"
+ },
+ "ui_hover": {
+  "file": "ui_hover.mp3",
+  "loop": false,
+  "src": "UserInterface/SFX_UI_MainMenu/SFX_UI_MainMenu_0003.ogg"
+ },
+ "ui_click": {
+  "file": "ui_click.mp3",
+  "loop": false,
+  "src": "UserInterface/SFX_UI_MainMenu/SFX_UI_MainMenu_0013.ogg"
+ },
+ "ui_confirm": {
+  "file": "ui_confirm.mp3",
+  "loop": false,
+  "src": "UserInterface/SFX_UI_MainMenu/SFX_UI_MainMenu_0022.ogg"
+ },
+ "ui_good": {
+  "file": "ui_good.mp3",
+  "loop": false,
+  "src": "UserInterface/SFX_UI_StatEvents/SFX_UI_StatEvents_0004.ogg"
+ },
+ "ui_bad": {
+  "file": "ui_bad.mp3",
+  "loop": false,
+  "src": "UserInterface/SFX_UI_Training/SFX_UI_Training_0006.ogg"
+ }
+}

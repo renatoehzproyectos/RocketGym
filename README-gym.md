@@ -27,3 +27,11 @@ Progress and the review are saved in localStorage; the last replay in IndexedDB 
 rules (18), analysis + adapter (26), UI smoke under jsdom, and a full headless cycle with the real wasm physics, recorder, rules, core and rlcoach-in-Pyodide.
 `node tools/gym/match_sim.mjs 2` produces a recording from the real physics; `node tools/gym/run_worker_node.mjs <file>` runs the real worker on it.
 After editing rlcoach imports: `python tools/gym/build_manifest.py`.
+
+## Audio
+`audio.js` (solo lectura sobre `RS`) usa el pack RocketLeague-Audio (dominio público, ver `audio/LICENSE-RocketLeague-Audio.txt`). Se cargan 27 sonidos (~1 MB) desde `audio/`:
+motor en 3 capas de RPM (tono según velocidad), boost (inicio/bucle/fin), derrape, salto/flip/aterrizaje, golpes por intensidad (balón y pared), gol + hinchada, cuenta atrás, y clics/aciertos de la interfaz.
+- Botón 🔊 (arriba a la derecha) cicla 100% / 55% / 25% / mute; tecla **M** silencia. `?audio=0` lo desactiva.
+- El pack original no se incluye (483 MB). Para cambiar un sonido: edita `MAP` en `tools/audio/build_audio.py` y ejecuta `python tools/audio/build_audio.py /ruta/RocketLeague-Audio-main`.
+- Los archivos del pack tienen nombres numerados; la asignación se hizo por análisis de forma de onda (envolvente, espectro), no de oído. Si alguno no suena bien, cámbialo en `MAP`.
+- Los bots y el rival multijugador no tienen sonido de motor propio (solo el auto local).

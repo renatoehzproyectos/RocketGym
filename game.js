@@ -323,17 +323,18 @@ async function main() {
   const hb = Module.getOctaneHitboxSize(); // {x: largo, y: ancho, z: alto}, en UU
 
   const canvas = document.getElementById('c');
-  // MEMORY: no antialias, pixelRatio=1, no PBR tone mapping, minimal lights
+  // Móvil: sin antialias, pixelRatio=1 (ahorra memoria). Escritorio: antialias + pixelRatio hasta 1.5 (bordes limpios como en RL).
+  const COARSE = window.matchMedia('(pointer: coarse)').matches;
   const renderer = new THREE.WebGLRenderer({
     canvas,
-    antialias: false,
-    powerPreference: 'low-power',
+    antialias: !COARSE,
+    powerPreference: COARSE ? 'low-power' : 'high-performance',
     alpha: false,
     stencil: false,
     depth: true,
   });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(1); // fixed 1: biggest GPU memory saver on mobile
+  renderer.setPixelRatio(COARSE ? 1 : Math.min(window.devicePixelRatio || 1, 1.5));
   renderer.outputEncoding = THREE.sRGBEncoding;
 
   const scene = new THREE.Scene();
@@ -1431,6 +1432,7 @@ async function main() {
   // dentro del arco es gol, y si se escapa por un hueco se reinicia el saque.
   let goalTimer = 0;
   const toast = document.createElement('div');
+  toast.id = 'rs-toast';   // estilo de banner de gol en rl_look.css
   toast.style.cssText = 'position:fixed;top:14%;left:50%;transform:translateX(-50%);z-index:40;padding:10px 26px;border-radius:8px;' +
     'font:700 28px sans-serif;letter-spacing:3px;color:#fff;background:rgba(0,0,0,0.45);text-shadow:0 0 12px #6cf;display:none;pointer-events:none';
   document.body.appendChild(toast);
@@ -1453,7 +1455,7 @@ async function main() {
     const inMouth = Math.abs(b.x) < GOAL_HW && b.z < GOAL_H;
     // En el .wasm una rampa tapa la entrada del arco a ras de piso (la pelota se frena en |y|≈5100),
     // así que el gol se cuenta al llegar a la línea dentro de la boca del arco.
-    if (ay > 5035 && inMouth) { showToast('¡GOL!', 1.6); goalTimer = 1.6; }
+    if (ay > 5035 && inMouth) { showToast('¡GOL!', 1.6); goalTimer = 1.6; if (window.RLAudio) window.RLAudio.goal(); }
     else if (ay > 5120 + r) { showToast('Pelota fuera: nuevo saque', 1.2); kickoff();
     } else if (Math.abs(b.x) > 4400 || b.z > 2400 || b.z < -150) {
       showToast('Pelota fuera: nuevo saque', 1.2); kickoff();
@@ -1490,6 +1492,7 @@ async function main() {
       const hx = bx - dx * t * 0.6, hy = by - dy * t * 0.6, hz = bz - dz * t * 0.6;
       const intensity = Math.min(1, 0.12 + dBall / 3200);   // toque suave ≈ 0.2 · tiro fuerte ≈ 1
       spawnSpark(hx, hy, hz, intensity);
+      if (window.RLAudio) window.RLAudio.hit(intensity, 'ball');
       hitCooldown = 0.3;
     }
 
@@ -1515,6 +1518,7 @@ async function main() {
         if ((intoX || intoY) || (prevInto && speedInto > 1200)) {
           const intensity = Math.min(0.7, speedInto / 4000);
           spawnSpark(wx, wy, wz + 40, intensity);
+          if (window.RLAudio) window.RLAudio.hit(intensity, 'wall');
           hitCooldown = 0.4;
         }
       }

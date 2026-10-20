@@ -6,9 +6,10 @@
   const layer = document.createElement('div');
   layer.style.cssText = 'position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:15';
   const style = document.createElement('style');
-  style.textContent = '.ntag{position:absolute;left:0;top:0;display:none;white-space:nowrap;padding:2px 10px;border-radius:999px;' +
-    'font:700 13px/1.3 system-ui,sans-serif;letter-spacing:.5px;color:#fff;background:rgba(8,12,20,.55);border:1.5px solid var(--c);' +
-    'text-shadow:0 1px 3px #000;transform-origin:50% 100%;will-change:transform}';
+  style.textContent = '.ntag{position:absolute;left:0;top:0;display:none;white-space:nowrap;padding:2px 12px 2px 14px;isolation:isolate;' +
+    'font:italic 800 14px/1.3 "Arial Narrow","Roboto Condensed",Impact,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#fff;' +
+    'text-shadow:0 1px 3px #000;transform-origin:50% 100%;will-change:transform}' +
+    '.ntag::before{content:"";position:absolute;inset:0;z-index:-1;background:rgba(6,14,30,.72);border-left:4px solid var(--c);transform:skewX(-12deg)}';
   document.head.appendChild(style);
   document.body.appendChild(layer);
 
